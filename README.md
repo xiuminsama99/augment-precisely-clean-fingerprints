@@ -92,6 +92,6 @@ python3 clean_augment.py -f
 **兼容性**: VS Code + Augment 扩展
 
 **支持项目**
-- **如果您觉得这个项目对您有帮助，可以请我喝杯奶茶或者吃个小饼干**：<img src="![image](https://github.com/user-attachments/assets/e20371b6-102d-4c74-b8f7-3948934204fc)
-" width="300" alt="支付宝赞赏码"> <img src="![image](https://github.com/user-attachments/assets/18130dfc-a8be-4c44-8eb1-bffc07334aee)
+- **如果您觉得这个项目对您有帮助，可以请我喝杯奶茶或者吃个小饼干**：<img src="https://github.com/user-attachments/assets/e20371b6-102d-4c74-b8f7-3948934204fc
+" width="300" alt="支付宝赞赏码"> <img src="https://github.com/user-attachments/assets/18130dfc-a8be-4c44-8eb1-bffc07334aee
 " width="300" alt="微信赞赏码">
