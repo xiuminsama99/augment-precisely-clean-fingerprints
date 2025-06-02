@@ -90,6 +90,7 @@ python3 clean_augment.py -f
 **版本**: v1.0  
 **设计原则**: 除非必要勿增实体  
 **兼容性**: VS Code + Augment 扩展
-支持项目
-如果您觉得这个项目对您有帮助，可以请我喝杯奶茶或者吃个小饼干：![image](https://github.com/user-attachments/assets/64b380a2-b4e7-4c0b-ac4e-43bf17ab1963)![image](https://github.com/user-attachments/assets/7f3c9578-7607-4614-83ab-8c1f4358498d)
+
+**支持项目**
+- **如果您觉得这个项目对您有帮助，可以请我喝杯奶茶或者吃个小饼干**：![image](https://github.com/user-attachments/assets/64b380a2-b4e7-4c0b-ac4e-43bf17ab1963)![image](https://github.com/user-attachments/assets/7f3c9578-7607-4614-83ab-8c1f4358498d)
 
