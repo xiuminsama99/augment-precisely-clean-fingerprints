@@ -45,6 +45,11 @@ class AugmentCleaner:
         paths["state_db"] = base_path / "globalStorage" / "state.vscdb"
         paths["global_storage"] = base_path / "globalStorage"
         paths["temp_dir"] = Path(tempfile.gettempdir())
+        # VSCode Cache paths are usually sibling to User folder (e.g., Code/Cache, Code/User)
+        vscode_root_path = base_path.parent 
+        paths["vscode_cache"] = vscode_root_path / "Cache"
+        paths["vscode_cached_data"] = vscode_root_path / "CachedData"
+        paths["vscode_gpu_cache"] = vscode_root_path / "GPUCache"
         
         return paths
     
@@ -77,8 +82,10 @@ class AugmentCleaner:
             cursor = conn.cursor()
             
             # 删除所有包含 augment 的键
+            # 彻底清理：删除所有包含 augment 的键
             cursor.execute("DELETE FROM ItemTable WHERE key LIKE '%augment%'")
             conn.commit()
+            self.log("数据库 state.vscdb 中所有 'key LIKE \'%augment%\'' 的条目已清理。", "SUCCESS")
             conn.close()
             
             self.log("数据库清理完成", "SUCCESS")
@@ -121,34 +128,69 @@ class AugmentCleaner:
             self.log(f"存储文件清理失败: {e}", "ERROR")
     
     def clean_augment_files(self, path: Path, name: str):
-        """清理包含augment的文件和目录"""
+        """彻底清理包含augment的文件和目录"""
         if not path.exists():
-            self.log(f"{name}不存在: {path}", "WARNING")
+            self.log(f"{name}路径不存在: {path}", "WARNING")
             return
 
-        self.log(f"清理{name}...")
-
+        self.log(f"彻底清理 {name} 中的 Augment 相关文件和目录...")
+        items_deleted_count = 0
         try:
             if path.is_dir():
-                # 清理目录中的augment相关项
-                for item in path.iterdir():
-                    if "augment" in item.name.lower():
-                        self.log(f"删除: {item}")
+                # 清理目录中的augment相关项 (包括子目录和文件)
+                for item in path.rglob("*augment*"): # 使用 rglob 进行递归搜索
+                    self.log(f"尝试删除: {item}")
+                    try:
                         if item.is_file():
                             item.unlink()
+                            items_deleted_count += 1
                         elif item.is_dir():
                             shutil.rmtree(item)
-                # 清理临时目录的glob模式
-                for item in path.glob("*augment*"):
-                    self.log(f"删除: {item}")
-                    if item.is_file():
-                        item.unlink()
-                    elif item.is_dir():
-                        shutil.rmtree(item)
+                            items_deleted_count += 1
+                    except Exception as e_item:
+                        self.log(f"删除 {item} 失败: {e_item}", "ERROR")
+                
+                # 再次检查并清理顶级目录中直接包含 augment 的项（如果 rglob 未完全覆盖）
+                for item in path.iterdir():
+                    if "augment" in item.name.lower():
+                        self.log(f"尝试删除 (顶级): {item}")
+                        try:
+                            if item.is_file():
+                                item.unlink()
+                                items_deleted_count += 1
+                            elif item.is_dir():
+                                shutil.rmtree(item)
+                                items_deleted_count += 1
+                        except Exception as e_top_item:
+                            self.log(f"删除顶级项目 {item} 失败: {e_top_item}", "ERROR")
 
-            self.log(f"{name}清理完成", "SUCCESS")
+            if items_deleted_count > 0:
+                self.log(f"{name}中 Augment 相关内容清理完成，共删除 {items_deleted_count} 项。", "SUCCESS")
+            else:
+                self.log(f"{name}中未找到 Augment 相关内容。", "INFO")
+
         except Exception as e:
-            self.log(f"{name}清理失败: {e}", "ERROR")
+            self.log(f"{name}清理过程中发生错误: {e}", "ERROR")
+
+    def clean_vscode_general_caches(self, paths_config):
+        """清理 VS Code 通用缓存目录"""
+        self.log("开始清理 VS Code 通用缓存目录...")
+        cache_paths_map = {
+            "VSCode Cache": paths_config.get("vscode_cache"),
+            "VSCode CachedData": paths_config.get("vscode_cached_data"),
+            "VSCode GPUCache": paths_config.get("vscode_gpu_cache"),
+        }
+
+        for cache_name, cache_path in cache_paths_map.items():
+            if cache_path and cache_path.exists():
+                self.log(f"尝试清理 {cache_name} 目录: {cache_path}")
+                try:
+                    shutil.rmtree(cache_path)
+                    self.log(f"{cache_name} 目录清理成功。", "SUCCESS")
+                except Exception as e:
+                    self.log(f"清理 {cache_name} 目录 ({cache_path}) 失败: {e}", "ERROR")
+            else:
+                self.log(f"{cache_name} 目录不存在或路径未配置: {cache_path}", "WARNING")
     
     def clean(self, force: bool = False):
         """执行完整清理流程"""
@@ -166,12 +208,13 @@ class AugmentCleaner:
         
         # 执行清理步骤
         self.stop_vscode()
-        self.clean_database(paths["state_db"])
-        self.clean_storage_json(paths["storage_json"])
-        self.clean_augment_files(paths["global_storage"], "全局存储")
-        self.clean_augment_files(paths["temp_dir"], "临时文件")
+        self.clean_database(paths["state_db"]) # 数据库清理已改为彻底模式
+        self.clean_storage_json(paths["storage_json"]) # 会重新生成 machineId 和 devDeviceId
+        self.clean_augment_files(paths["global_storage"], "全局存储") # 全局存储清理已改为彻底模式
+        self.clean_augment_files(paths["temp_dir"], "临时文件") # 临时文件清理已改为彻底模式
+        self.clean_vscode_general_caches(paths) # 清理VS Code通用缓存
         
-        self.log("清理完成！请重启 VS Code 并重新登录 Augment", "SUCCESS")
+        self.log("所有指定的清理操作已彻底执行。请重启 VS Code 并重新登录 Augment。", "SUCCESS")
         return True
 
 def main():
